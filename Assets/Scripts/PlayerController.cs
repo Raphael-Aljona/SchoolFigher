@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -14,7 +15,12 @@ public class PlayerController : MonoBehaviour
 
     //player olhando para a direita
     bool playerFaceingRight = true;
-    
+
+    int punchCount;
+    float timeCross = 1f;
+
+    bool comboControl;
+
     void Start()
     {
         //Obtem e inicializa a propriedades no rigidBody2D
@@ -29,7 +35,36 @@ public class PlayerController : MonoBehaviour
     {
         PlayerMove();
         UpdateAnimator();
-       
+
+        //Iniciar o temporizador
+        
+
+        // Quando clicar em alguma tecla
+        if (Input.GetKeyDown(KeyCode.X))
+        {
+            if (isWalking == false)
+            {
+                if (punchCount < 2)
+                {
+                    PlayerJab();
+                    punchCount ++;
+                    if (!comboControl)
+                    {
+                        StartCoroutine(CrossController());
+                    }
+                }
+                else if (punchCount >= 2)
+                {
+                    PlayerCross();
+                    punchCount = 0;
+                }
+
+            }
+        }
+
+        // Parando o temporizador
+        StopCoroutine(CrossController());
+
     }
 
     // Fixed Upadte é utilizada para implementação de física no jogo
@@ -83,6 +118,24 @@ public class PlayerController : MonoBehaviour
 
         //Girar em 180 graus o sprite
         transform.Rotate(0, 180, 0);
+    }
+
+    void PlayerJab()
+    {
+        playerAnimator.SetTrigger("isJab");
+    }
+
+    void PlayerCross()
+    {
+        playerAnimator.SetTrigger("isCross");
+    }
+
+    IEnumerator CrossController()
+    {
+        comboControl = true;
+        yield return new WaitForSeconds(timeCross);
+        punchCount = 0;
+        comboControl = false;
     }
 }
 
