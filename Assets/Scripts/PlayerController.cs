@@ -23,7 +23,7 @@ public class PlayerController : MonoBehaviour
     bool comboControl;
 
     //Indicar se o player está morto
-    bool isDead;
+    public bool isDead;
 
 
     void Start()
