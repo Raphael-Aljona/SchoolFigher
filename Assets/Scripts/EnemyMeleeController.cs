@@ -1,5 +1,6 @@
 using NUnit.Framework.Constraints;
 using System.Runtime.CompilerServices;
+using UnityEditorInternal;
 using UnityEngine;
 
 public class EnemyMeleeController : MonoBehaviour
@@ -18,16 +19,28 @@ public class EnemyMeleeController : MonoBehaviour
     Transform target;
 
     // Variavel de movimentação
-    float enemySpeed = 0.3f;
-    float currentSpeed;
+    public float enemySpeed = 0.3f;
+    public float currentSpeed;
 
     bool isWalking;
 
-    float horizontalForce;
-    float verticalForce;
+    public float horizontalForce;
+    public float verticalForce;
 
     //Variavel que vamos usar para controlar
     float walkTimer;
+
+    // Variáveis para mecânica de ataque
+    float attackRate = 1f;
+    float nextAttack;
+
+    // Variáveis para mecânica de dano
+    public int maxHealth;
+    public int currentHealth;
+
+    public float staggerTime = 0.5f;
+    float damageTimer;
+    bool isTakingDamage;
 
     void Start()
     {
@@ -40,6 +53,7 @@ public class EnemyMeleeController : MonoBehaviour
         //Iniciar a velocidade do inimigo
         currentSpeed = enemySpeed;
 
+        currentHealth = maxHealth;
     }
 
 
@@ -85,40 +99,108 @@ public class EnemyMeleeController : MonoBehaviour
             isWalking = true;
         }
 
+        //Gerenciar o tempo de stagger
+        if (isTakingDamage && !isDead)
+        {
+            damageTimer += Time.deltaTime;
+            ZeroSpeed();
+
+            if (damageTimer >= staggerTime)
+            {
+                isTakingDamage = false;
+                damageTimer = 0;
+
+                ResetSpeed();
+            }
+        }
+
         UpdateAnimator();
     }
 
     private void FixedUpdate()
     {
-        //Movimentação
 
-        // Variavel para armazenar a distancia entre o inimigo e o player
-        Vector3 targetDistance = target.position - this.transform.position;
-
-        // Determina se a força horizontal deve ser negativa
-        horizontalForce = targetDistance.x / Mathf.Abs(targetDistance.x);
-
-        //Entre 1 e 2 segundos será feita uma definicão de direção vertical
-        if (walkTimer >= Random.Range(1f, 2f))
+        if (!isDead)
         {
-            verticalForce = Random.Range(-1, 2);
 
-            // Zera o timer de movimentação para andar verticalmente novamente a cada +- 1seg
-            walkTimer = 0;
+            //Movimentação
+
+            // Variavel para armazenar a distancia entre o inimigo e o player
+            Vector3 targetDistance = target.position - this.transform.position;
+
+            // Determina se a força horizontal deve ser negativa
+            horizontalForce = targetDistance.x / Mathf.Abs(targetDistance.x);
+
+            //Entre 1 e 2 segundos será feita uma definicão de direção vertical
+            if (walkTimer >= Random.Range(1f, 2f))
+            {
+                verticalForce = Random.Range(-1, 2);
+
+                // Zera o timer de movimentação para andar verticalmente novamente a cada +- 1seg
+                walkTimer = 0;
+            }
+
+            // Caso esteja pto do player, parar a movimentação
+            if (Mathf.Abs(targetDistance.x) < 0.2f)
+            {
+                horizontalForce = 0;
+            }
+
+            // Aplica velocidade no inimigo fazendo o movimentar 
+            rb.linearVelocity = new Vector2(horizontalForce * currentSpeed, verticalForce * currentSpeed);
+
+            // Ataque
+            // Se estiver perto ao player e o Timer do jogo for maior que o valor de nextAttack
+            if (Mathf.Abs(targetDistance.x) < 0.2f && Mathf.Abs(targetDistance.y) < 0.05f && Time.time > nextAttack)
+            {
+                animator.SetTrigger("Attack");
+
+                ZeroSpeed();
+
+                // Pega o tempo atual e soma o attackRate, para definir a partir de quando 
+                nextAttack = Time.time + attackRate;
+            }
         }
-
-        // Caso esteja pto do player, parar a movimentação
-        if (Mathf.Abs(targetDistance.x) < 0.4)
-        {
-            horizontalForce = 0;
-        }
-
-        // Aplica velocidade no inimigo fazendo o movimentar 
-        rb.linearVelocity = new Vector2(horizontalForce * currentSpeed, verticalForce * currentSpeed);
     }
 
     void UpdateAnimator()
     {
         animator.SetBool("isWalking", isWalking);
+    }
+
+    public void TakeDamage(int damage)
+    {
+        if (!isDead)
+        {
+            isTakingDamage = true;
+
+            currentHealth -= damage;
+
+            animator.SetTrigger("HItDamage");
+
+            if (currentHealth <= 0)
+            {
+                isDead = true;
+
+                currentSpeed = 0;
+
+                animator.SetTrigger("Dead");
+            }
+        }
+    }
+
+    void ZeroSpeed()
+    {
+        currentSpeed = 0;
+    }
+
+    void ResetSpeed()
+    {
+        currentSpeed = enemySpeed;
+    }
+
+    public void DisableEnemy()
+    {
+        gameObject.SetActive(false);
     }
 }
